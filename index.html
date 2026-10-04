@@ -313,7 +313,7 @@ vec3 getDropShadow(vec4 col, float curThreshold, bool useMask) {
 		dropShadowAmount = texture2D(bitmap, checkedPixel).a;
 	}
 	
-	return (min(dropColor.rgb * ((1.0 - (dropShadowAmount * str)) * intensity), 1.0) * pow(col.a, 16.0));
+	return (dropColor.rgb * ((1.0 - (dropShadowAmount * str)) * intensity) * col.a);
 }
 
 void main()
@@ -717,27 +717,43 @@ void main()
             }
 
             if (/^i?vec[234]$/.test(type)) {
-                const n=Number(type.slice(-1)), integer=type[0]==='i';
-                const grid=document.createElement('div');
-                grid.className=`grid grid-cols-${n} gap-1.5`;
-                ['X','Y','Z','W'].slice(0,n).forEach((label,i)=>{
-                    const box=document.createElement('div');
-                    box.className="flex items-center bg-slate-900 border border-slate-800 rounded px-1.5 py-1";
-                    const l=document.createElement('span');l.className="text-[10px] font-mono text-slate-500 mr-1";l.textContent=label;
-                    const input=document.createElement('input');input.type='number';input.step=integer?1:0.01;input.value=value[i]??0;
-                    input.className="w-full bg-transparent text-xs text-indigo-400 font-mono text-right focus:outline-none";
-                    input.oninput=()=>{let v=integer?parseInt(input.value,10):parseFloat(input.value);if(!Number.isFinite(v))v=0;const a=[...value];a[i]=v;setValue(a);};
-                    box.append(l,input);grid.appendChild(box);
-                });
-                if(type==='vec3'){
-                    const color=document.createElement('input');color.type='color';
-                    color.value=rgbToHex(clamp(value[0])*255,clamp(value[1])*255,clamp(value[2])*255);
-                    color.className="w-8 h-6 bg-slate-900 border border-slate-700 rounded cursor-pointer";
-                    color.oninput=e=>{const r=hexToRgb(e.target.value);setValue([r.r/255,r.g/255,r.b/255]);};
-                    wrap.appendChild(color);
-                }
-                wrap.appendChild(grid);return wrap;
-            }
+    const n = Number(type.slice(-1)), integer = type[0] === 'i';
+    const grid = document.createElement('div');
+    grid.className = `grid grid-cols-${n} gap-1.5`;
+    
+    ['X', 'Y', 'Z', 'W'].slice(0, n).forEach((label, i) => {
+        const box = document.createElement('div');
+        box.className = "flex items-center bg-slate-900 border border-slate-800 rounded px-1.5 py-1";
+        
+        const l = document.createElement('span'); 
+        l.className = "text-[10px] font-mono text-slate-500 mr-1"; 
+        l.textContent = label;
+        
+        const input = document.createElement('input'); 
+        input.type = 'number'; 
+        input.step = integer ? '1' : '0.01'; 
+        input.value = Array.isArray(value) && value[i] !== undefined ? value[i] : 0;
+        input.className = "w-full bg-transparent text-xs text-indigo-400 font-mono text-right focus:outline-none";
+        
+        input.oninput = () => {
+            let v = integer ? parseInt(input.value, 10) : parseFloat(input.value);
+            if (!Number.isFinite(v)) v = 0;
+            
+            const currentArr = Array.isArray(uniformValues[name]) 
+                ? [...uniformValues[name]] 
+                : [0, 0, 0, 0];
+                
+            currentArr[i] = v;
+            setValue(currentArr);
+        };
+        
+        box.append(l, input); 
+        grid.appendChild(box);
+    });
+    
+    wrap.appendChild(grid); 
+    return wrap;
+}
 
             if (/^mat[234]$/.test(type)) {
                 const n=Number(type.slice(3)), grid=document.createElement('div');

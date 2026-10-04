@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flixel Shader Studio</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Custom scrollbar styling for editor and sidebar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        /* Transparency checkerboard background for canvas */
+        .checkerboard {
+            background-color: #090d16;
+            background-image: 
+                linear-gradient(45deg, #1e293b 25%, transparent 25%), 
+                linear-gradient(-45deg, #1e293b 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #1e293b 75%), 
+                linear-gradient(-45deg, transparent 75%, #1e293b 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col font-sans overflow-hidden select-none">
+
+    <!-- Header -->
+    <header class="h-14 bg-slate-900 border-b border-slate-800 px-4 flex items-center justify-between z-10 shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="p-2 bg-indigo-600/20 text-indigo-400 rounded-lg border border-indigo-500/30">
+                <i data-lucide="sparkles" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-slate-100 text-base leading-tight">Flixel Shader Studio</h1>
+                <p class="text-xs text-slate-400">Fragment Shader Visualizer</p>
+            </div>
+        </div>
+
+        <!-- Header Actions -->
+        <div class="flex items-center space-x-3">
+            <span id="canvasStats" class="text-xs font-mono text-slate-400 bg-slate-950 px-3 py-1.5 rounded-md border border-slate-800 hidden sm:inline-block">
+                0 x 0 px | 60 FPS
+            </span>
+            <button id="exportBtn" class="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-all shadow-lg shadow-indigo-600/20 active:scale-95">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                <span>Export PNG</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- Sidebar Controls Panel -->
+        <aside class="w-80 sm:w-96 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0">
+            <!-- Sidebar Tabs -->
+            <div class="flex border-b border-slate-800 bg-slate-950/50 p-1">
+                <button id="tabControlsBtn" class="flex-1 py-2 text-xs font-medium rounded-md bg-slate-800 text-slate-100 transition-all flex items-center justify-center space-x-2">
+                    <i data-lucide="sliders" class="w-3.5 h-3.5"></i>
+                    <span>Parameters</span>
+                </button>
+                <button id="tabEditorBtn" class="flex-1 py-2 text-xs font-medium rounded-md text-slate-400 hover:text-slate-200 transition-all flex items-center justify-center space-x-2">
+                    <i data-lucide="code" class="w-3.5 h-3.5"></i>
+                    <span>GLSL Code</span>
+                </button>
+            </div>
+
+            <!-- Panel Content Container -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-6">
+                
+                <!-- PARAMETERS TAB -->
+                <div id="tabControls" class="space-y-6">
+                    <!-- File Inputs Section -->
+                    <div class="space-y-3">
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">Inputs</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <!-- Load Image Button -->
+                            <label class="flex flex-col items-center justify-center p-3 border border-dashed border-slate-700 hover:border-indigo-500 bg-slate-950/50 hover:bg-slate-800/50 rounded-xl cursor-pointer transition-all group">
+                                <i data-lucide="image" class="w-5 h-5 text-slate-400 group-hover:text-indigo-400 mb-1"></i>
+                                <span class="text-xs text-slate-300 font-medium">Load Image</span>
+                                <input type="file" id="imageInput" accept="image/*" class="hidden">
+                            </label>
+
+                            <!-- Load Shader Button -->
+                            <label class="flex flex-col items-center justify-center p-3 border border-dashed border-slate-700 hover:border-indigo-500 bg-slate-950/50 hover:bg-slate-800/50 rounded-xl cursor-pointer transition-all group">
+                                <i data-lucide="file-code" class="w-5 h-5 text-slate-400 group-hover:text-indigo-400 mb-1"></i>
+                                <span class="text-xs text-slate-300 font-medium">Load .frag</span>
+                                <input type="file" id="shaderInput" accept=".frag,.glsl,.txt" class="hidden">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Presets Section -->
+                    <div class="space-y-3">
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">Quick Presets</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button class="preset-btn bg-slate-800 hover:bg-slate-700 text-xs py-2 px-3 rounded-lg text-slate-200 border border-slate-700 transition text-left truncate" data-preset="red">
+                                🔴 Red Rimlight
+                            </button>
+                            <button class="preset-btn bg-slate-800 hover:bg-slate-700 text-xs py-2 px-3 rounded-lg text-slate-200 border border-slate-700 transition text-left truncate" data-preset="cyan">
+                                🔷 Cyber Cyan
+                            </button>
+                            <button class="preset-btn bg-slate-800 hover:bg-slate-700 text-xs py-2 px-3 rounded-lg text-slate-200 border border-slate-700 transition text-left truncate" data-preset="gold">
+                                🟡 Warm Gold
+                            </button>
+                            <button class="preset-btn bg-slate-800 hover:bg-slate-700 text-xs py-2 px-3 rounded-lg text-slate-200 border border-slate-700 transition text-left truncate" data-preset="reset">
+                                🔄 Reset HSBC
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Uniform Controls Container -->
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">Shader Uniforms</label>
+                            <span id="uniformCount" class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full">0 parameters</span>
+                        </div>
+                        <div id="dynamicUniforms" class="space-y-4">
+                            <!-- Dynamic controls will be generated here -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GLSL CODE EDITOR TAB -->
+                <div id="tabEditor" class="hidden h-full flex flex-col space-y-3">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">Shader Source</label>
+                        <button id="recompileBtn" class="flex items-center space-x-1 text-xs bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 hover:bg-indigo-600 hover:text-white px-2.5 py-1 rounded-md transition-all">
+                            <i data-lucide="play" class="w-3 h-3"></i>
+                            <span>Compile</span>
+                        </button>
+                    </div>
+                    <textarea id="glslEditor" class="w-full flex-1 min-h-[420px] bg-slate-950 text-emerald-400 font-mono text-xs p-3 rounded-xl border border-slate-800 focus:outline-none focus:border-indigo-500 resize-none leading-relaxed" spellcheck="false"></textarea>
+                    <!-- Error log window -->
+                    <div id="errorLog" class="hidden p-3 bg-red-950/50 border border-red-800/50 rounded-xl text-red-300 font-mono text-xs max-h-32 overflow-y-auto"></div>
+                </div>
+
+            </div>
+        </aside>
+
+        <!-- Viewport Canvas Area -->
+        <main class="flex-1 relative bg-slate-950 flex flex-col items-center justify-center overflow-hidden p-4">
+            
+            <!-- Floating Canvas Toolbar -->
+            <div class="absolute top-4 left-4 z-10 flex items-center space-x-2 bg-slate-900/80 backdrop-blur border border-slate-800 p-1.5 rounded-xl shadow-lg">
+                <button id="zoomInBtn" class="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition" title="Zoom In">
+                    <i data-lucide="zoom-in" class="w-4 h-4"></i>
+                </button>
+                <button id="zoomOutBtn" class="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition" title="Zoom Out">
+                    <i data-lucide="zoom-out" class="w-4 h-4"></i>
+                </button>
+                <button id="resetZoomBtn" class="p-1.5 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition" title="Fit to Screen">
+                    <i data-lucide="maximize-2" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- Canvas Container -->
+            <div id="canvasViewport" class="relative w-full h-full flex items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing">
+                <div id="canvasWrapper" class="relative rounded-lg overflow-hidden shadow-2xl border border-slate-800/80 checkerboard transition-transform duration-75">
+                    <canvas id="glCanvas"></canvas>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        // Default Shader Code (rimlight1.frag)
+        const DEFAULT_SHADER_CODE = `#pragma header
+
+// This shader aims to mostly recreate how Adobe Animate/Flash handles drop shadows, but its main use here is for rim lighting.
+
+uniform vec4 uFrameBounds;
+
+uniform float ang;
+uniform float dist;
+uniform float str;
+uniform float thr;
+
+uniform float angOffset;
+
+uniform sampler2D altMask;
+uniform bool useMask;
+uniform float thr2;
+
+uniform vec3 dropColor;
+
+uniform float hue;
+uniform float saturation;
+uniform float brightness;
+uniform float contrast;
+
+uniform float AA_STAGES;
+
+const vec3 grayscaleValues = vec3(0.3098039215686275, 0.607843137254902, 0.0823529411764706);
+const float e = 2.718281828459045;
+
+vec3 applyHueRotate(vec3 aColor, float aHue) {
+	float angle = radians(aHue);
+
+	mat3 m1 = mat3(0.213, 0.213, 0.213, 0.715, 0.715, 0.715, 0.072, 0.072, 0.072);
+	mat3 m2 = mat3(0.787, -0.213, -0.213, -0.715, 0.285, -0.715, -0.072, -0.072, 0.928);
+	mat3 m3 = mat3(-0.213, 0.143, -0.787, -0.715, 0.140, 0.715, 0.928, -0.283, 0.072);
+	mat3 m = m1 + cos(angle) * m2 + sin(angle) * m3;
+
+	return m * aColor;
+}
+
+vec3 applySaturation(vec3 aColor, float value) {
+	if(value > 0.0){ value = value * 3.0; }
+	
+	value = (1.0 + (value / 100.0));
+	
+	vec3 grayscale = vec3(dot(aColor, grayscaleValues));
+	
+	return clamp(mix(grayscale, aColor, value), 0.0, 1.0);
+}
+
+vec3 applyContrast(vec3 aColor, float value) {
+	value = (1.0 + (value / 100.0));
+	
+	if(value > 1.0){
+		value = (((0.00852259 * pow(e, 4.76454 * (value - 1.0))) * 1.01) - 0.0086078159) * 10.0;
+		value += 1.0;
+	}
+	
+	return clamp((aColor - 0.25) * value + 0.25, 0.0, 1.0);
+}
+
+vec4 applyHSBCEffect(vec4 color) {
+	color.rgb += ((brightness) / 255.0);
+	color.rgb = applyHueRotate(color.rgb, hue);
+	color.rgb = applyContrast(color.rgb, contrast);
+	color.rgb = applySaturation(color.rgb, saturation);
+	return color;
+}
+
+vec2 hash22(vec2 p) {
+	vec3 p3 = fract(vec3(p.xyx) * vec3(.1031, .1030, .0973));
+	p3 += dot(p3, p3.yzx + 33.33);
+	return fract((p3.xx + p3.zy) * p3.zy);
+}
+
+float intensityPass(vec2 fragCoord, float curThreshold, bool useMask) {
+	vec4 col = texture2D(bitmap, fragCoord);
+	
+	float maskIntensity = 0.0;
+	if (useMask) {
+		maskIntensity = mix(0.0, 1.0, texture2D(altMask, fragCoord).b);
+	}
+	
+	if(col.a == 0.0){
+		return 0.0;
+	}
+	
+	float intensity = dot(col.rgb, vec3(0.3098, 0.6078, 0.0823));
+	
+	intensity = maskIntensity > 0.0 ? float(intensity > thr2) : float(intensity > thr);
+	
+	return intensity;
+}
+
+float antialias(vec2 fragCoord, float curThreshold, bool useMask) {
+	if (AA_STAGES == 0.0) {
+		return intensityPass(fragCoord, curThreshold, useMask);
+	}
+	
+	const int MAX_AA = 8;
+	float AA_TOTAL_PASSES = AA_STAGES * AA_STAGES + 1.0;
+	const float AA_JITTER = 0.5;
+	
+	float color = intensityPass(fragCoord, curThreshold, useMask);
+	for (int i = 0; i < 64; i++) {
+		int x = i / MAX_AA;
+		int y = i - (MAX_AA * (i / MAX_AA));
+		
+		if (float(x) >= AA_STAGES || float(y) >= AA_STAGES) {
+			continue;
+		}
+		
+		vec2 offset = AA_JITTER * (2.0 * hash22(vec2(float(x), float(y))) - 1.0) / openfl_TextureSize.xy;
+		color += intensityPass(fragCoord + offset, curThreshold, useMask);
+	}
+	
+	return color / AA_TOTAL_PASSES;
+}
+
+vec3 getDropShadow(vec4 col, float curThreshold, bool useMask) {
+	float intensity = antialias(openfl_TextureCoordv, curThreshold, useMask);
+	vec2 imageRatio = vec2(1.0 / openfl_TextureSize.x, 1.0 / openfl_TextureSize.y);
+	
+	vec2 checkedPixel = vec2(openfl_TextureCoordv.x + (dist * cos(ang + angOffset) * imageRatio.x),
+	openfl_TextureCoordv.y - (dist * sin(ang + angOffset) * imageRatio.y));
+	
+	float dropShadowAmount = 0.0;
+	
+	if(checkedPixel.x > uFrameBounds.x && checkedPixel.y > uFrameBounds.y && checkedPixel.x < uFrameBounds.z && checkedPixel.y < uFrameBounds.w){
+		dropShadowAmount = texture2D(bitmap, checkedPixel).a;
+	}
+	
+	return (min(dropColor.rgb * ((1.0 - (dropShadowAmount * str)) * intensity), 1.0) * pow(col.a, 16.0));
+}
+
+void main()
+{
+	vec4 col = texture2D(bitmap, openfl_TextureCoordv);
+	vec4 unpremultipliedColor = vec4(col.a > 0.0 ? col.rgb / col.a : col.rgb, col.a);
+	vec4 outColor = applyHSBCEffect(unpremultipliedColor);
+	
+	gl_FragColor = vec4((outColor.rgb * col.a + getDropShadow(col, thr, useMask)) * openfl_Alphav, col.a * openfl_Alphav);
+	if (openfl_HasColorTransform) gl_FragColor = (gl_FragColor * openfl_ColorMultiplierv + openfl_ColorOffsetv);
+}`;
+
+        // Global State
+        let gl = null;
+        let program = null;
+        let texture = null;
+        let sourceImage = null;
+        let uniformLocations = {};
+        let uniformValues = {};
+        let uniformTypes = {};
+
+        // Canvas Transformation State
+        let scale = 1.0;
+        let panX = 0;
+        let panY = 0;
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            initWebGL();
+            setupUIEvents();
+            setupCanvasPanZoom();
+
+            // Load default dummy sprite (Character silhouette placeholder)
+            createPlaceholderImage();
+
+            // Load default shader
+            document.getElementById('glslEditor').value = DEFAULT_SHADER_CODE;
+            compileAndSetShader(DEFAULT_SHADER_CODE);
+            
+            // Start render loop
+            requestAnimationFrame(renderLoop);
+        });
+
+        function createPlaceholderImage() {
+            const svg = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+                <defs>
+                    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#38bdf8;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#818cf8;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                <circle cx="256" cy="180" r="90" fill="url(#grad)" />
+                <path d="M 110,420 C 110,290 402,290 402,420 C 402,460 110,460 110,420 Z" fill="url(#grad)" />
+                <circle cx="225" cy="170" r="12" fill="#0f172a" />
+                <circle cx="287" cy="170" r="12" fill="#0f172a" />
+                <path d="M 220,210 Q 256,235 292,210" stroke="#0f172a" stroke-width="8" stroke-linecap="round" fill="none" />
+            </svg>`;
+            
+            const img = new Image();
+            img.onload = () => {
+                sourceImage = img;
+                uploadTexture(img);
+                resetZoom();
+            };
+            img.src = 'data:image/svg+xml;base64,' + btoa(svg);
+        }
+
+        function initWebGL() {
+            const canvas = document.getElementById('glCanvas');
+            gl = canvas.getContext('webgl', { preserveDrawingBuffer: true, alpha: true });
+            if (!gl) {
+                alert('WebGL is not supported on your browser.');
+                return;
+            }
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        }
+
+        const VERTEX_SHADER_SOURCE = `
+    attribute vec2 aPosition;
+    attribute vec2 aTexCoord;
+
+    varying float openfl_Alphav;
+    varying vec4 openfl_ColorMultiplierv;
+    varying vec4 openfl_ColorOffsetv;
+    varying vec2 openfl_TextureCoordv;
+
+    uniform mat4 openfl_Matrix;
+    uniform bool openfl_HasColorTransform;
+    uniform vec2 openfl_TextureSize;
+
+    void main(void) {
+        openfl_TextureCoordv = aTexCoord;
+        openfl_Alphav = 1.0;
+        openfl_ColorMultiplierv = vec4(1.0);
+        openfl_ColorOffsetv = vec4(0.0);
+        gl_Position = vec4(aPosition, 0.0, 1.0);
+    }
+        `;
+
+        // OpenFL Header Prepender
+        const OPENFL_HEADER = `
+    #ifdef GL_ES
+    precision mediump float;
+    #endif
+            varying float openfl_Alphav;
+		varying vec4 openfl_ColorMultiplierv;
+		varying vec4 openfl_ColorOffsetv;
+		varying vec2 openfl_TextureCoordv;
+
+		uniform bool openfl_HasColorTransform;
+		uniform vec2 openfl_TextureSize;
+		uniform bool sampleAttachment;
+		uniform sampler2D bitmap;
+      uniform bool hasTransform;  // TODO: Is this still needed? Apparently, yes!
+		uniform bool hasColorTransform;
+		uniform bool premultiplyAlpha;
+		vec4 flixel_texture2D(sampler2D bitmap, vec2 coord)
+		{
+			vec4 color = texture2D(bitmap, coord);
+
+			if (premultiplyAlpha)
+				color.rgb *= color.a;
+
+			if (!(hasTransform || openfl_HasColorTransform))
+				return color;
+
+			if (color.a == 0.0)
+				return vec4(0.0, 0.0, 0.0, 0.0);
+
+			if (openfl_HasColorTransform || hasColorTransform)
+			{
+				color = vec4 (color.rgb / color.a, color.a);
+				vec4 mult = vec4 (openfl_ColorMultiplierv.rgb, 1.0);
+				color = clamp (openfl_ColorOffsetv + (color * mult), 0.0, 1.0);
+
+				if (color.a == 0.0)
+					return vec4 (0.0, 0.0, 0.0, 0.0);
+
+				return vec4 (color.rgb * color.a * openfl_Alphav, color.a * openfl_Alphav);
+			}
+
+			return color * openfl_Alphav;
+		}
+        `;
+
+        function compileAndSetShader(fragSource) {
+            const errorLog = document.getElementById('errorLog');
+            errorLog.classList.add('hidden');
+
+            // Replace #pragma header with OpenFL definitions
+            let processedFrag = fragSource.replace('#pragma header', OPENFL_HEADER);
+
+            // Create WebGL Shaders
+            const vertShader = gl.createShader(gl.VERTEX_SHADER);
+            gl.shaderSource(vertShader, VERTEX_SHADER_SOURCE);
+            gl.compileShader(vertShader);
+
+            const fragShader = gl.createShader(gl.FRAGMENT_SHADER);
+            gl.shaderSource(fragShader, processedFrag);
+            gl.compileShader(fragShader);
+
+            if (!gl.getShaderParameter(fragShader, gl.COMPILE_STATUS)) {
+                const log = gl.getShaderInfoLog(fragShader);
+                errorLog.innerText = "Shader Compile Error:\n" + log;
+                errorLog.classList.remove('hidden');
+                return;
+            }
+
+            // Create Program
+            const newProgram = gl.createProgram();
+            gl.attachShader(newProgram, vertShader);
+            gl.attachShader(newProgram, fragShader);
+            gl.linkProgram(newProgram);
+
+            if (!gl.getProgramParameter(newProgram, gl.LINK_STATUS)) {
+                errorLog.innerText = "Program Link Error:\n" + gl.getProgramInfoLog(newProgram);
+                errorLog.classList.remove('hidden');
+                return;
+            }
+
+            program = newProgram;
+            gl.useProgram(program);
+
+            // Set up Fullscreen Quad Geometry
+            const positionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+                -1, -1,  0, 1,
+                 1, -1,  1, 1,
+                -1,  1,  0, 0,
+                -1,  1,  0, 0,
+                 1, -1,  1, 1,
+                 1,  1,  1, 0,
+            ]), gl.STATIC_DRAW);
+
+            const aPosition = gl.getAttribLocation(program, "aPosition");
+            const aTexCoord = gl.getAttribLocation(program, "aTexCoord");
+
+            gl.enableVertexAttribArray(aPosition);
+            gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 16, 0);
+
+            gl.enableVertexAttribArray(aTexCoord);
+            gl.vertexAttribPointer(aTexCoord, 2, gl.FLOAT, false, 16, 8);
+
+            // Extract and build UI for Uniforms
+            extractUniforms(fragSource);
+            buildDynamicControls();
+        }
+
+        function extractUniforms(source) {
+            // Flexible regex to match uniforms across whitespace and code variations
+            const regex = /uniform\s+(float|vec2|vec3|vec4|bool|int|ivec2|ivec3|ivec4|bvec2|bvec3|bvec4|mat2|mat3|mat4|sampler2D|samplerCube)\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\s*\[\s*(\d+)\s*\])?\s*;/gm;
+            let match;
+
+            const prevValues = { ...uniformValues };
+            
+            // Clear current uniform states fully
+            uniformTypes = {};
+            uniformLocations = {};
+            uniformValues = {};
+
+            while ((match = regex.exec(source)) !== null) {
+                const type = match[1];
+                const name = match[2];
+                const arrayLength = match[3] ? parseInt(match[3], 10) : null;
+
+                // Ignore internal OpenFL preview environment uniforms
+                if (['bitmap', 'openfl_TextureSize', 'openfl_Alphav',
+                    'openfl_HasColorTransform', 'openfl_ColorMultiplierv',
+                    'openfl_ColorOffsetv', 'hasColorTransform', 'altMask'].includes(name)) {
+                    continue;
+                }
+
+                uniformTypes[name] = { type, arrayLength };
+                uniformLocations[name] = gl.getUniformLocation(program, name);
+
+                // Retain old uniform values if matching name/type exists, otherwise load defaults
+                if (name in prevValues) {
+                    uniformValues[name] = prevValues[name];
+                } else {
+                    uniformValues[name] = defaultUniformValue(type, name, arrayLength);
+                }
+            }
+
+            document.getElementById('uniformCount').innerText =
+                `${Object.keys(uniformTypes).length} parameters`;
+        }
+
+        function defaultUniformValue(type, name, arrayLength) {
+            const special = {
+                hue: 0, saturation: 0, brightness: 0, contrast: 0,
+                ang: 150, angOffset: 0, dist: 14, str: 1,
+                thr: 0.01, thr2: 0.01, AA_STAGES: 2,
+                useMask: false, dropColor: [1, 0, 0],
+                uFrameBounds: [0, 0, 1, 1]
+            };
+
+            const one = () => {
+                if (Object.prototype.hasOwnProperty.call(special, name)) {
+                    const v = special[name];
+                    return Array.isArray(v) ? [...v] : v;
+                }
+                switch (type) {
+                    case 'float': return 0;
+                    case 'vec2': return [0, 0];
+                    case 'vec3': return [1, 1, 1];
+                    case 'vec4': return [0, 0, 1, 1];
+                    case 'int': return 0;
+                    case 'ivec2': return [0, 0];
+                    case 'ivec3': return [0, 0, 0];
+                    case 'ivec4': return [0, 0, 0, 0];
+                    case 'bool': return false;
+                    case 'bvec2': return [false, false];
+                    case 'bvec3': return [false, false, false];
+                    case 'bvec4': return [false, false, false, false];
+                    case 'mat2': return [1, 0, 0, 1];
+                    case 'mat3': return [1, 0, 0, 0, 1, 0, 0, 0, 1];
+                    case 'mat4': return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+                    case 'sampler2D':
+                    case 'samplerCube': return 0;
+                    default: return 0;
+                }
+            };
+
+            return arrayLength ? Array.from({length: arrayLength}, one) : one();
+        }
+
+        function uniformInfo(value) {
+            return typeof value === 'string'
+                ? { type: value, arrayLength: null }
+                : value;
+        }
+
+        function buildDynamicControls() {
+            const container = document.getElementById('dynamicUniforms');
+            container.innerHTML = '';
+
+            Object.keys(uniformTypes).forEach(name => {
+                const info = uniformInfo(uniformTypes[name]);
+                const type = info.type;
+                const count = info.arrayLength;
+                const card = document.createElement('div');
+                card.className = "bg-slate-950/60 border border-slate-800/80 p-3 rounded-xl space-y-2";
+
+                const title = document.createElement('div');
+                title.className = "text-xs font-medium text-slate-200 font-mono";
+                title.innerText = count ? `${name}[${count}] — ${type}` : `${name} — ${type}`;
+                card.appendChild(title);
+
+                if (count) {
+                    const list = document.createElement('div');
+                    list.className = "space-y-2";
+                    for (let i = 0; i < count; i++) {
+                        const row = document.createElement('div');
+                        row.className = "border border-slate-800 rounded-lg p-2";
+                        const label = document.createElement('div');
+                        label.className = "text-[10px] text-slate-500 font-mono mb-1";
+                        label.innerText = `${name}[${i}]`;
+                        row.appendChild(label);
+                        row.appendChild(createUniformControl(type, name, uniformValues[name][i],
+                            v => uniformValues[name][i] = v));
+                        list.appendChild(row);
+                    }
+                    card.appendChild(list);
+                } else {
+                    card.appendChild(createUniformControl(type, name, uniformValues[name],
+                        v => uniformValues[name] = v));
+                }
+
+                container.appendChild(card);
+            });
+        }
+
+        function createUniformControl(type, name, value, setValue) {
+            const wrap = document.createElement('div');
+            wrap.className = "space-y-2";
+
+            if (type === 'float' || type === 'int') {
+                let min = type === 'int' ? -100 : -1, max = type === 'int' ? 100 : 1;
+                let step = type === 'int' ? 1 : 0.01;
+
+                if (name === 'hue') { min=-180; max=180; step=1; }
+                else if (name === 'saturation' || name === 'contrast') { min=-100; max=100; step=1; }
+                else if (name === 'brightness') { min=-255; max=255; step=1; }
+                else if (name === 'ang' || name === 'angOffset') { min=0; max=360; step=1; }
+                else if (name === 'dist') { min=0; max=100; step=1; }
+                else if (name === 'str') { min=0; max=5; step=0.05; }
+                else if (name === 'thr' || name === 'thr2') { min=0; max=1; step=0.005; }
+                else if (name === 'AA_STAGES') { min=0; max=8; step=1; }
+
+                const row = document.createElement('div');
+                row.className = "flex items-center gap-2";
+                const slider = document.createElement('input');
+                slider.type='range'; slider.min=min; slider.max=max; slider.step=step;
+                slider.value=value ?? 0;
+                slider.className="flex-1 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500";
+                const input = document.createElement('input');
+                input.type='number'; input.step=step; input.value=value ?? 0;
+                input.className="w-24 bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-xs text-indigo-400 font-mono text-right focus:outline-none";
+
+                const apply = raw => {
+                    let v = type === 'int' ? parseInt(raw,10) : parseFloat(raw);
+                    if (!Number.isFinite(v)) v=0;
+                    setValue(v); slider.value=v; input.value=v;
+                };
+                slider.addEventListener('input',e=>apply(e.target.value));
+                input.addEventListener('input',e=>apply(e.target.value));
+                row.append(slider,input); wrap.appendChild(row);
+                return wrap;
+            }
+
+            if (type === 'bool') {
+                const b=document.createElement('button');
+                let v=!!value;
+                const refresh=()=>{
+                    b.textContent=v?'Enabled':'Disabled';
+                    b.className=`py-1 px-3 rounded text-xs font-semibold border ${v?'bg-indigo-600/20 text-indigo-400 border-indigo-500/30':'bg-slate-800 text-slate-400 border-slate-700'}`;
+                };
+                refresh();
+                b.onclick=()=>{v=!v;setValue(v);refresh();};
+                wrap.appendChild(b); return wrap;
+            }
+
+            if (/^bvec[234]$/.test(type)) {
+                const n=Number(type.slice(4)), grid=document.createElement('div');
+                grid.className=`grid grid-cols-${n} gap-1.5`;
+                ['X','Y','Z','W'].slice(0,n).forEach((label,i)=>{
+                    const b=document.createElement('button');
+                    let v=!!value[i];
+                    const refresh=()=>{b.textContent=`${label}: ${v}`;b.className=`py-1 rounded text-[10px] font-mono border ${v?'bg-indigo-600/20 text-indigo-400 border-indigo-500/30':'bg-slate-900 text-slate-500 border-slate-800'}`;};
+                    refresh();
+                    b.onclick=()=>{v=!v;const a=[...value];a[i]=v;setValue(a);refresh();};
+                    grid.appendChild(b);
+                });
+                wrap.appendChild(grid); return wrap;
+            }
+
+            if (/^i?vec[234]$/.test(type)) {
+                const n=Number(type.slice(-1)), integer=type[0]==='i';
+                const grid=document.createElement('div');
+                grid.className=`grid grid-cols-${n} gap-1.5`;
+                ['X','Y','Z','W'].slice(0,n).forEach((label,i)=>{
+                    const box=document.createElement('div');
+                    box.className="flex items-center bg-slate-900 border border-slate-800 rounded px-1.5 py-1";
+                    const l=document.createElement('span');l.className="text-[10px] font-mono text-slate-500 mr-1";l.textContent=label;
+                    const input=document.createElement('input');input.type='number';input.step=integer?1:0.01;input.value=value[i]??0;
+                    input.className="w-full bg-transparent text-xs text-indigo-400 font-mono text-right focus:outline-none";
+                    input.oninput=()=>{let v=integer?parseInt(input.value,10):parseFloat(input.value);if(!Number.isFinite(v))v=0;const a=[...value];a[i]=v;setValue(a);};
+                    box.append(l,input);grid.appendChild(box);
+                });
+                if(type==='vec3'){
+                    const color=document.createElement('input');color.type='color';
+                    color.value=rgbToHex(clamp(value[0])*255,clamp(value[1])*255,clamp(value[2])*255);
+                    color.className="w-8 h-6 bg-slate-900 border border-slate-700 rounded cursor-pointer";
+                    color.oninput=e=>{const r=hexToRgb(e.target.value);setValue([r.r/255,r.g/255,r.b/255]);};
+                    wrap.appendChild(color);
+                }
+                wrap.appendChild(grid);return wrap;
+            }
+
+            if (/^mat[234]$/.test(type)) {
+                const n=Number(type.slice(3)), grid=document.createElement('div');
+                grid.className=`grid grid-cols-${n} gap-1.5`;
+                for(let i=0;i<n*n;i++){
+                    const input=document.createElement('input');input.type='number';input.step=0.01;input.value=value[i]??0;
+                    input.className="w-full bg-slate-900 border border-slate-800 rounded px-1 py-1 text-[10px] text-indigo-400 font-mono text-center";
+                    input.oninput=()=>{let v=parseFloat(input.value);if(!Number.isFinite(v))v=0;const a=[...value];a[i]=v;setValue(a);};
+                    grid.appendChild(input);
+                }
+                wrap.appendChild(grid);return wrap;
+            }
+
+            if (type === 'sampler2D' || type === 'samplerCube') {
+                const note=document.createElement('div');
+                note.className="text-[10px] text-slate-500";
+                note.textContent=type==='sampler2D'
+                    ? "Texture unit 0 = loaded image"
+                    : "Cube-map texture unit (0 by default)";
+                const input=document.createElement('input');
+                input.type='number';input.min=0;input.step=1;input.value=value??0;
+                input.className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-indigo-400 font-mono";
+                input.oninput=()=>setValue(Math.max(0,parseInt(input.value,10)||0));
+                wrap.append(note,input);return wrap;
+            }
+
+            return wrap;
+        }
+
+        function clamp(v) {
+            return Math.min(1, Math.max(0, Number(v)||0));
+        }
+
+        function uploadTexture(image) {
+            if (!gl) return;
+            const canvas = document.getElementById('glCanvas');
+            canvas.width = image.width;
+            canvas.height = image.height;
+
+            if (texture) gl.deleteTexture(texture);
+            texture = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+
+            gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+            document.getElementById('canvasStats').innerText = `${image.width} x ${image.height} px | 60 FPS`;
+        }
+
+        function renderLoop() {
+            if (gl && program && sourceImage) {
+                gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+                gl.clearColor(0.0, 0.0, 0.0, 0.0);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+
+                gl.useProgram(program);
+
+                // Set Standard OpenFL Uniforms
+                gl.uniform2f(gl.getUniformLocation(program, "openfl_TextureSize"), sourceImage.width, sourceImage.height);
+                gl.uniform1f(gl.getUniformLocation(program, "openfl_Alphav"), 1.0);
+                gl.uniform1i(gl.getUniformLocation(program, "openfl_HasColorTransform"), 0);
+
+                // Bind Main Texture
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                gl.uniform1i(gl.getUniformLocation(program, "bitmap"), 0);
+
+                // Pass Dynamic Uniforms to WebGL
+                Object.keys(uniformTypes).forEach(name => {
+                    const loc = uniformLocations[name];
+                    if (loc === null) return;
+
+                    const info = uniformInfo(uniformTypes[name]);
+                    const type = info.type;
+                    const val = uniformValues[name];
+
+                    if (info.arrayLength) {
+                        const flat = val.flat ? val.flat() : val;
+                        switch (type) {
+                            case 'float': gl.uniform1fv(loc, val); break;
+                            case 'vec2': gl.uniform2fv(loc, flat); break;
+                            case 'vec3': gl.uniform3fv(loc, flat); break;
+                            case 'vec4': gl.uniform4fv(loc, flat); break;
+                            case 'int':
+                            case 'sampler2D':
+                            case 'samplerCube': gl.uniform1iv(loc, val); break;
+                            case 'ivec2': gl.uniform2iv(loc, flat); break;
+                            case 'ivec3': gl.uniform3iv(loc, flat); break;
+                            case 'ivec4': gl.uniform4iv(loc, flat); break;
+                            case 'bool': gl.uniform1iv(loc, val.map(v=>v?1:0)); break;
+                            case 'bvec2':
+                            case 'bvec3':
+                            case 'bvec4': gl[`uniform${type.slice(1)}iv`](loc, flat.map(v=>v?1:0)); break;
+                            case 'mat2': gl.uniformMatrix2fv(loc,false,flat); break;
+                            case 'mat3': gl.uniformMatrix3fv(loc,false,flat); break;
+                            case 'mat4': gl.uniformMatrix4fv(loc,false,flat); break;
+                        }
+                    } else {
+                        switch (type) {
+                            case 'float': {
+                                let v=Number(val)||0;
+                                if(name==='ang') v*=Math.PI/180;
+                                gl.uniform1f(loc,v); break;
+                            }
+                            case 'vec2': gl.uniform2fv(loc,val); break;
+                            case 'vec3': gl.uniform3fv(loc,val); break;
+                            case 'vec4': gl.uniform4fv(loc,val); break;
+                            case 'int':
+                            case 'sampler2D':
+                            case 'samplerCube': gl.uniform1i(loc,val|0); break;
+                            case 'ivec2': gl.uniform2iv(loc,val); break;
+                            case 'ivec3': gl.uniform3iv(loc,val); break;
+                            case 'ivec4': gl.uniform4iv(loc,val); break;
+                            case 'bool': gl.uniform1i(loc,val?1:0); break;
+                            case 'bvec2': gl.uniform2iv(loc,val.map(v=>v?1:0)); break;
+                            case 'bvec3': gl.uniform3iv(loc,val.map(v=>v?1:0)); break;
+                            case 'bvec4': gl.uniform4iv(loc,val.map(v=>v?1:0)); break;
+                            case 'mat2': gl.uniformMatrix2fv(loc,false,val); break;
+                            case 'mat3': gl.uniformMatrix3fv(loc,false,val); break;
+                            case 'mat4': gl.uniformMatrix4fv(loc,false,val); break;
+                        }
+                    }
+                });
+
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+            }
+
+            requestAnimationFrame(renderLoop);
+        }
+
+        function setupCanvasPanZoom() {
+            const viewport = document.getElementById('canvasViewport');
+            const wrapper = document.getElementById('canvasWrapper');
+
+            viewport.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                startX = e.clientX - panX;
+                startY = e.clientY - panY;
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                panX = e.clientX - startX;
+                panY = e.clientY - startY;
+                updateCanvasTransform();
+            });
+
+            window.addEventListener('mouseup', () => isDragging = false);
+
+            viewport.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+                scale = Math.min(Math.max(0.1, scale * zoomFactor), 5.0);
+                updateCanvasTransform();
+            });
+
+            document.getElementById('zoomInBtn').addEventListener('click', () => { scale = Math.min(5.0, scale * 1.25); updateCanvasTransform(); });
+            document.getElementById('zoomOutBtn').addEventListener('click', () => { scale = Math.max(0.1, scale * 0.8); updateCanvasTransform(); });
+            document.getElementById('resetZoomBtn').addEventListener('click', resetZoom);
+        }
+
+        function resetZoom() {
+            scale = 1.0;
+            panX = 0;
+            panY = 0;
+            updateCanvasTransform();
+        }
+
+        function updateCanvasTransform() {
+            const wrapper = document.getElementById('canvasWrapper');
+            wrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+        }
+
+        function setupUIEvents() {
+            // Tab Toggle
+            const tabControlsBtn = document.getElementById('tabControlsBtn');
+            const tabEditorBtn = document.getElementById('tabEditorBtn');
+            const tabControls = document.getElementById('tabControls');
+            const tabEditor = document.getElementById('tabEditor');
+
+            tabControlsBtn.addEventListener('click', () => {
+                tabControls.classList.remove('hidden');
+                tabEditor.classList.add('hidden');
+                tabControlsBtn.className = "flex-1 py-2 text-xs font-medium rounded-md bg-slate-800 text-slate-100 transition-all flex items-center justify-center space-x-2";
+                tabEditorBtn.className = "flex-1 py-2 text-xs font-medium rounded-md text-slate-400 hover:text-slate-200 transition-all flex items-center justify-center space-x-2";
+            });
+
+            tabEditorBtn.addEventListener('click', () => {
+                tabControls.classList.add('hidden');
+                tabEditor.classList.remove('hidden');
+                tabEditorBtn.className = "flex-1 py-2 text-xs font-medium rounded-md bg-slate-800 text-slate-100 transition-all flex items-center justify-center space-x-2";
+                tabControlsBtn.className = "flex-1 py-2 text-xs font-medium rounded-md text-slate-400 hover:text-slate-200 transition-all flex items-center justify-center space-x-2";
+            });
+
+            // Recompile GLSL Code Button
+            document.getElementById('recompileBtn').addEventListener('click', () => {
+                const source = document.getElementById('glslEditor').value;
+                compileAndSetShader(source);
+            });
+
+            // File Uploads
+            document.getElementById('imageInput').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        sourceImage = img;
+                        uploadTexture(img);
+                        resetZoom();
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+
+            document.getElementById('shaderInput').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const code = event.target.result;
+                    document.getElementById('glslEditor').value = code;
+                    compileAndSetShader(code);
+                };
+                reader.readAsText(file);
+            });
+
+            // Export High-Res PNG
+            document.getElementById('exportBtn').addEventListener('click', () => {
+                const canvas = document.getElementById('glCanvas');
+                const link = document.createElement('a');
+                link.download = 'shader_processed_image.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+
+            // Presets
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const type = btn.getAttribute('data-preset');
+                    if (type === 'red') {
+                        uniformValues['dropColor'] = [1.0, 0.0, 0.0];
+                        uniformValues['str'] = 1.0;
+                        uniformValues['dist'] = 14;
+                    } else if (type === 'cyan') {
+                        uniformValues['dropColor'] = [0.0, 0.8, 1.0];
+                        uniformValues['str'] = 1.5;
+                        uniformValues['dist'] = 12;
+                    } else if (type === 'gold') {
+                        uniformValues['dropColor'] = [1.0, 0.8, 0.2];
+                        uniformValues['str'] = 1.2;
+                        uniformValues['dist'] = 18;
+                    } else if (type === 'reset') {
+                        uniformValues['hue'] = 0;
+                        uniformValues['saturation'] = 0;
+                        uniformValues['brightness'] = 0;
+                        uniformValues['contrast'] = 0;
+                    }
+                    buildDynamicControls();
+                });
+            });
+        }
+
+        // Color Converter Helpers
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : { r: 255, g: 0, b: 0 };
+        }
+
+        function rgbToHex(r, g, b) {
+            return "#" + (1 << 24 | Math.round(r) << 16 | Math.round(g) << 8 | Math.round(b)).toString(16).slice(1);
+        }
+    </script>
+</body>
+</html>
